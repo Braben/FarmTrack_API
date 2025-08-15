@@ -6,10 +6,84 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  // output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String     @id @default(cuid())
+  firstname   String
+  lastname    String
+  email       String     @unique
+  phone       String?
+  password    String
+  role        UserRole   @default(Farmer)
+  profileInfo String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  lastLogin   DateTime?  @default(now())
+
+  farms       Farm[]
+}
+
+model Farm {
+  id        String     @id @default(cuid())
+  name      String
+  location  String
+  size      Float
+  ownerId   String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  owner     User       @relation(fields: [ownerId], references: [id])
+  records   Record[]
+  sales     Sale[]
+  reminders Reminder[]
+}
+
+model Record {
+  id            String   @id @default(cuid())
+  farmId        String
+  date          DateTime @default(now())
+  feedUsedKg    Float
+  eggsCollected Int
+  birdsDied     Int
+  birdsSold     Int
+  expenses      Float
+  notes         String?
+
+  farm          Farm     @relation(fields: [farmId], references: [id])
+}
+
+model Sale {
+  id         String   @id @default(cuid())
+  farmId     String
+  date       DateTime @default(now())
+  product    String
+  quantity   Int
+  unitPrice  Float
+  buyerName  String?
+  revenue    Float
+
+  farm       Farm     @relation(fields: [farmId], references: [id])
+}
+
+model Reminder {
+  id          String   @id @default(cuid())
+  farmId      String
+  title       String
+  type        String
+  dueDate     DateTime
+  isCompleted Boolean  @default(false)
+
+  farm        Farm     @relation(fields: [farmId], references: [id])
+}
+
+enum UserRole {
+  Farmer
+  FarmerAssistant
 }

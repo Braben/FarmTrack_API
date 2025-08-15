@@ -52,3 +52,5 @@ docker-compose.override.yml
 uploads/
 public/uploads/
 /src/generated/prisma
+
+/src/generated/prisma

@@ -5,6 +5,9 @@ const helmet = require("helmet");
 const dotenv = require("dotenv");
 dotenv.config();
 
+//import routes
+const userRoutes = require("./routes/userRoutes");
+
 const app = express();
 
 // Middleware
@@ -17,6 +20,9 @@ app.use(helmet());
 app.get("/", (req, res) => {
   res.send("Welcome to FarmTrack API");
 });
+
+// Import routes
+app.use("/api/users", userRoutes);
 
 //server listening
 app.listen(process.env.PORT || 5500, () => {
