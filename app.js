@@ -22,7 +22,7 @@ app.get("/", (req, res) => {
 });
 
 // Import routes
-app.use("/api/users", userRoutes);
+app.use("/api/users", userRoutes); // User routes
 
 //server listening
 app.listen(process.env.PORT || 5500, () => {
