@@ -33,7 +33,7 @@ router.post("/logout", logout); // Logout route
 // router.post("/reset-password", resetPassword); // Reset password route (not implemented in this snippet)
 
 router.post("/forgot-password", forgotPassword); // Forgot password route
-router.post("/reset-password", resetPassword); // Reset password route
+router.patch("/reset-password/:token", resetPassword); // Reset password route
 
 // Export the router
 module.exports = router;

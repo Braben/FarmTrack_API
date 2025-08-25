@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const { sendEmail } = require("../utils/email");
 
 // Register user
 // This function handles user registration
@@ -278,7 +279,7 @@ const handleLoginAttempts = async (userId) => {
     if (user) {
       const attempts = (user.loginAttempts || 0) + 1; // Increment login attempts
       const lockoutUntil =
-        attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null; // Lockout for 15 minutes after 5 failed attempts
+        attempts >= 5 ? new Date(Date.now() + 10 * 60 * 1000) : null; // Lockout for 10 minutes after 5 failed attempts
 
       await prisma.user.update({
         where: { id: userId },
@@ -320,51 +321,193 @@ exports.forgotPassword = async (req, res, next) => {
     // 1. Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, isActive: true },
+      select: {
+        id: true,
+        email: true,
+        isActive: true,
+        // Check for recent reset attempts to prevent spam
+        passwordResetExpires: true,
+      },
     });
 
-    if (!user) {
-      return res.status(404).json({ message: "No user with that email" });
-    }
+    // Always return the same response to prevent email enumeration
+    const standardResponse = {
+      message:
+        "If an account with that email exists and is active, a password reset link has been sent.",
+    };
 
-    let resetToken;
-
-    // 2. Generate reset token only if user is active
+    // Only proceed if user exists and is active
     if (user && user.isActive) {
-      resetToken = crypto.randomBytes(32).toString("hex");
+      // Prevent multiple reset requests within short time
 
+      // 2. Generate reset token
+      const resetToken = crypto.randomBytes(32).toString("hex");
       const passwordResetToken = crypto
         .createHash("sha256")
         .update(resetToken)
         .digest("hex");
-
       const passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          passwordResetToken,
-          passwordResetExpires,
-        },
-      });
+      try {
+        // 3. Update user with reset token
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            passwordResetToken,
+            passwordResetExpires,
+          },
+        });
 
-      // 3. Send reset token via email (for now log it)
-      console.log(`Password reset token for ${user.email}: ${resetToken}`);
+        // 4. Prepare email content
+        const resetURL = `${req.protocol}://${req.get(
+          "host"
+        )}/api/users/reset-password/${resetToken}`;
+
+        const emailContent = {
+          email: user.email,
+          subject: "Password Reset Request - Action Required",
+          message: `
+Hello,
+
+You have requested a password reset for your account. Click the link below to reset your password:
+
+${resetURL}
+
+This link will expire in 10 minutes for security reasons.
+
+If you did not request this password reset, please ignore this email and your password will remain unchanged.
+
+For security reasons, please do not share this link with anyone.
+
+Best regards,
+FarmTrack Team
+          `.trim(),
+        };
+
+        // 5. Send email
+        await sendEmail(emailContent);
+
+        console.log(
+          `Password reset email sent successfully to user: ${user.email}`
+        );
+
+        // For development/testing only - remove in production
+        console.log(`Reset token for testing: ${resetToken}`);
+      } catch (emailError) {
+        console.error("Error sending password reset email:", emailError);
+
+        // Clean up the reset token if email failed
+        try {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              passwordResetToken: null,
+              passwordResetExpires: null,
+            },
+          });
+        } catch (cleanupError) {
+          console.error("Error cleaning up reset token:", cleanupError);
+        }
+
+        // Don't reveal email sending failure to prevent enumeration
+        // Log the error but return standard response
+        return res.status(200).json(standardResponse);
+      }
+    } else {
+      // Log attempt for non-existent or inactive users
+      console.log(
+        `Password reset attempted for invalid/inactive email: ${email}`
+      );
     }
 
-    return res.status(200).json({
-      message:
-        "If the account exists and is active, a reset link has been sent",
-      resetToken,
-      // resetToken, // will remove in production, only keep for testing
-    });
+    // Always return the same response
+    return res.status(200).json(standardResponse);
   } catch (error) {
     console.error("Error in forgot password:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
   }
 };
 
-exports.resetPassword = async (req, res) => {};
+//reset password function
+exports.resetPassword = async (req, res) => {
+  const { token } = req.params;
+  const { newPassword } = req.body;
 
-//4.if token has not expired, and there is user, set the new password
-//5.update changedPasswordAt property for the user
+  if (!token) {
+    return res.status(400).json({ error: "Invalid or missing token" });
+  }
+
+  try {
+    // 1. Hash the token
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    // 2. Find user with matching token and valid expiration
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "Token is invalid or has expired" });
+    }
+
+    // 3. Validate password
+    // if (!newPassword || newPassword.length < 8) {
+    //   return res
+    //     .status(400)
+    //     .json({ error: "Password must be at least 8 characters long" });
+    // }
+
+    // 4. Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // 5. Update user with new password & clear reset fields
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    // 6. Generate JWT token for auto-login
+    const accessToken = jwt.sign(
+      { userId: updatedUser.id, role: updatedUser.role },
+      process.env.JWT_SECRET,
+      {
+        subject: updatedUser.id.toString(),
+        expiresIn: "1h",
+        issuer: "FarmTrackAPI",
+        audience: "FarmTrackUsers",
+      }
+    );
+
+    // 7. Set cookie (optional, if you’re using cookies for auth)
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // 8. Send response
+    return res.status(200).json({
+      message: "Password has been reset successfully. You are now logged in.",
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      },
+      token: accessToken, // return token in response too
+    });
+  } catch (error) {
+    console.error("Error resetting password:", error);
+    return res.status(500).json({ error: "Failed to reset password" });
+  }
+};

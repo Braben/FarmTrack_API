@@ -15,33 +15,34 @@ datasource db {
 }
 
 model User {
-  id          String     @id @default(cuid())
-  firstname   String
-  lastname    String
-  email       String     @unique
-  phone       String?
-  password    String
-  role        UserRole   @default(Farmer)
-  profileInfo String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  lastLogin   DateTime?  @default(now())
-  isActive    Boolean    @default(true)
-  loginAttempts Int       @default(0)
-  lockoutUntil DateTime?
-  passwordResetToken     String?   
-  passwordResetExpires   DateTime?
-  farms       Farm[]
+  id                   String    @id @default(cuid())
+  firstname            String
+  lastname             String
+  email                String    @unique
+  phone                String?
+  password             String
+  role                 UserRole  @default(Farmer)
+  profileInfo          String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  lastLogin            DateTime? @default(now())
+  isActive             Boolean   @default(true)
+  loginAttempts        Int?      @default(0)
+  lockoutUntil         DateTime?
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  passwordChangedAt    DateTime?
+  farms                Farm[]
 }
 
 model Farm {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
   location  String
   size      Float
   ownerId   String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   owner     User       @relation(fields: [ownerId], references: [id])
   records   Record[]
@@ -60,20 +61,20 @@ model Record {
   expenses      Float
   notes         String?
 
-  farm          Farm     @relation(fields: [farmId], references: [id])
+  farm Farm @relation(fields: [farmId], references: [id])
 }
 
 model Sale {
-  id         String   @id @default(cuid())
-  farmId     String
-  date       DateTime @default(now())
-  product    String
-  quantity   Int
-  unitPrice  Float
-  buyerName  String?
-  revenue    Float
+  id        String   @id @default(cuid())
+  farmId    String
+  date      DateTime @default(now())
+  product   String
+  quantity  Int
+  unitPrice Float
+  buyerName String?
+  revenue   Float
 
-  farm       Farm     @relation(fields: [farmId], references: [id])
+  farm Farm @relation(fields: [farmId], references: [id])
 }
 
 model Reminder {
@@ -84,7 +85,7 @@ model Reminder {
   dueDate     DateTime
   isCompleted Boolean  @default(false)
 
-  farm        Farm     @relation(fields: [farmId], references: [id])
+  farm Farm @relation(fields: [farmId], references: [id])
 }
 
 enum UserRole {
