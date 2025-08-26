@@ -6,6 +6,7 @@ dotenv.config();
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { sendEmail } = require("../utils/email");
+const e = require("express");
 
 // Register user
 // This function handles user registration
@@ -250,6 +251,7 @@ exports.login = async (req, res) => {
     });
 
     console.log(`User logged in successfully: ${user.id}`);
+
     return res.status(200).json({
       message: "Login successful",
       user: {
@@ -257,6 +259,7 @@ exports.login = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        accessToken: accessToken, // return token in response too
       },
     });
   } catch (error) {
@@ -509,5 +512,87 @@ exports.resetPassword = async (req, res) => {
   } catch (error) {
     console.error("Error resetting password:", error);
     return res.status(500).json({ error: "Failed to reset password" });
+  }
+};
+
+// update password function
+exports.updatePassword = async (req, res) => {
+  // Ensure user is authenticated
+  if (!req.user || !req.user.id) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    // 1. Get user from DB
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id }, // ✅ FIXED here
+      select: { password: true, isActive: true },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(404).json({ error: "User not found or inactive" });
+    }
+
+    // 2. Check if current password matches
+    const isPasswordValid = await bcrypt.compare(
+      req.body.currentPassword,
+      user.password
+    );
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Current password is incorrect" });
+    }
+
+    if (req.body.currentPassword === req.body.newPassword) {
+      return res.status(400).json({
+        error: "New password must be different from current password",
+      });
+    }
+
+    // 3. Check new password confirmation
+    if (req.body.newPassword !== req.body.confirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match" });
+    }
+
+    // 4. Hash new password & update in DB
+    const hashedPassword = await bcrypt.hash(req.body.newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        password: hashedPassword,
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    // 5. Generate new JWT
+    const accessToken = jwt.sign(
+      { userId: req.user.id, role: req.user.role }, // optional role
+      process.env.JWT_SECRET,
+      {
+        subject: req.user.id.toString(),
+        expiresIn: "1h",
+        issuer: "FarmTrackAPI",
+        audience: "FarmTrackUsers",
+      }
+    );
+
+    // 6. Set JWT in cookie
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 60 * 60 * 1000, // 1h
+    });
+
+    // 7. Final response
+    console.log(`User logged in with new password: ${req.user.id}`);
+    return res.status(200).json({
+      message: "Password updated and user logged in successfully",
+      token: accessToken,
+    });
+  } catch (error) {
+    console.error("Error updating password:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 };

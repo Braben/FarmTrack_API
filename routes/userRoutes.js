@@ -14,19 +14,21 @@ const {
   // resetPassword,
   forgotPassword,
   resetPassword,
+  updatePassword,
 } = require("../controllers/userController");
 const loginLimiter = require("../middlewares/loginLimiter");
+const { authMiddleware } = require("../middlewares/authmiddleware");
 
 // Define user routes
 router.post("/register", register);
 router.get("/", getUsers);
 router.get("/:id", getUserById);
-router.put("/update/:id", updateUser);
+router.put("/update/:id", authMiddleware, updateUser);
 router.delete("/:id", deleteUser);
 
 //Define auth routes
 router.post("/login", loginLimiter, login); // Note: The login route is protected by the loginLimiter middleware to prevent brute force attacks
-router.post("/logout", logout); // Logout route
+router.post("/logout", authMiddleware, logout); // Logout route
 // Password reset routes
 // router.post("/request-password-reset", requestPasswordReset); // Request password reset
 // // Note: The password reset route is not rate-limited here, but you can add a rate limiter if needed
@@ -34,6 +36,7 @@ router.post("/logout", logout); // Logout route
 
 router.post("/forgot-password", forgotPassword); // Forgot password route
 router.patch("/reset-password/:token", resetPassword); // Reset password route
+router.patch("/updatepassword", authMiddleware, updatePassword); // Change password route
 
 // Export the router
 module.exports = router;
