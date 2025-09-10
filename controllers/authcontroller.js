@@ -6,7 +6,6 @@ dotenv.config();
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { sendEmail } = require("../utils/email");
-const e = require("express");
 
 // This function handles user registration
 exports.register = async (req, res) => {
@@ -53,6 +52,9 @@ exports.register = async (req, res) => {
       },
     });
 
+    newUser.password = undefined; // Hide password in response
+    // newUser.id = undefined; // Hide id in response
+
     console.log("New User Created:", newUser);
     res.status(201).json({
       message: "User registered successfully",
@@ -64,18 +66,6 @@ exports.register = async (req, res) => {
     res
       .status(500)
       .json({ error: "Registration failed", errorMessage: error.message });
-  }
-};
-
-// Get all users
-exports.getUsers = async (req, res) => {
-  try {
-    const users = await prisma.user.findMany();
-    res.status(200).json(users);
-    console.log("Users retrieved successfully");
-  } catch (error) {
-    console.error("Error retrieving users:", error.message);
-    res.status(500).json({ error: "Failed to retrieve users" });
   }
 };
 
@@ -226,6 +216,7 @@ exports.login = async (req, res) => {
     }
 
     // Reset login attempts and update last login in single transaction
+    //this function resets login attempts to 0 after successful login
     await prisma.$transaction([
       prisma.user.update({
         where: { id: user.id },
@@ -243,22 +234,23 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET,
       {
         subject: user.id.toString(),
-        expiresIn: "1h",
+        expiresIn: process.env.JWT_EXPIRES_IN,
         issuer: "FarmTrackAPI",
         audience: "FarmTrackUsers",
       }
     );
 
     // Set cookie with same expiration as token
-    res.cookie("accessToken", accessToken, {
+    res.cookie("JWT", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 60 * 60 * 1000, // 1 hour to match JWT expiration
+      maxAge: 60 * 60 * 1000, // 1 hour
     });
 
     console.log(`User logged in successfully: ${user.id}`);
 
+    // Send response with user info and token
     return res.status(200).json({
       message: "Login successful",
       user: {
@@ -266,7 +258,7 @@ exports.login = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        accessToken: accessToken, // return token in response too
+        JWT: accessToken, // return token in response too
       },
     });
   } catch (error) {

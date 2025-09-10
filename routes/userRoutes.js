@@ -4,10 +4,14 @@ const { authMiddleware } = require("../middlewares/authmiddleware");
 
 // Import user controller
 const {
+  getAllUsers,
   updatePassword,
   updateMe,
   deleteMe,
 } = require("../controllers/userController");
+
+// Define user routes
+router.get("/allusers", getAllUsers); // Get all users route
 
 router.patch("/updatepassword", authMiddleware, updatePassword); // Change password route
 router.patch("/updateme", authMiddleware, updateMe); // updateuser(ME) route

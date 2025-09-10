@@ -3,7 +3,6 @@ const router = express.Router();
 
 const {
   register,
-  getUsers,
   getUserById,
   updateUser,
   deleteUser,
@@ -17,7 +16,6 @@ const { authMiddleware } = require("../middlewares/authmiddleware");
 
 // Define user routes
 router.post("/register", register);
-router.get("/", getUsers);
 router.get("/:id", getUserById);
 router.put("/update/:id", authMiddleware, updateUser);
 router.delete("/:id", deleteUser);

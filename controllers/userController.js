@@ -7,6 +7,27 @@ const jwt = require("jsonwebtoken");
 
 // Register user
 
+// Get all users
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { isActive: { not: false } },
+    });
+    res.status(200).json({
+      status: "success",
+      results: users.length,
+      data: {
+        users,
+      },
+    });
+    console.log("Users retrieved successfully");
+  } catch (error) {
+    console.error("Error retrieving users:", error.message);
+    res.status(500).json({ error: "Failed to retrieve users" });
+  }
+};
+
 // update password function
 exports.updatePassword = async (req, res) => {
   // Ensure user is authenticated
@@ -88,50 +109,6 @@ exports.updatePassword = async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
-// exports.updateMe = async (req, res) => {
-//   // Ensure user is authenticated
-//   if (!req.user || !req.user.id) {
-//     return res.status(401).json({ error: "Unauthorized", statusCode: 401 });
-//   }
-//   // const { id } = req.params;
-//   // const { firstname, lastname, email, phone, role } = req.body;
-
-//   // if (req.body.password || req.body.passwordConfirm) {
-//   //   return res.status(400).json({
-//   //     error: "This route is not for password updates.",
-//   //     statusCode: 400,
-//   //   });
-//   // }
-//   try {
-//     const updatedUser = await prisma.user.findFirst({
-//       where: { id: req.user.id },
-//       data: {
-//         firstname: req.body.name,
-//         lastname: req.body.lastname,
-//         email: req.body.email,
-//         phone: req.body.phone,
-
-//         // Add other fields as necessary
-//       },
-//       select: {
-//         id: true,
-//         firstname: true,
-//         lastname: true,
-//         email: true,
-//         phone: true,
-//         role: true,
-//       },
-//     });
-
-//     res
-//       .status(200)
-//       .json({ user: updatedUser, message: "User updated successfully" });
-//   } catch (error) {
-//     console.error("Error updating user:", error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// };
 
 exports.updateMe = async (req, res) => {
   // Ensure user is authenticated
