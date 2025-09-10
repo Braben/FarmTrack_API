@@ -112,7 +112,7 @@ exports.authMiddleware = async (req, res, next) => {
     }
 
     // Fallback: Check cookies (if you're using cookie-based auth)
-    if (!token && req.cookies?.accessToken) {
+    if (!token && !req.cookies?.accessToken) {
       token = req.cookies.accessToken;
     }
 
@@ -169,15 +169,15 @@ exports.authMiddleware = async (req, res, next) => {
 
     // Validate token payload
     const userId = decoded.userId || decoded.id; // Support both userId and sub claims
-    // if (!decoded.userId || typeof decoded.userId !== "string") {
-    //   console.log(
-    //     `Authentication failed: Invalid token payload from IP ${req.ip}`
-    //   );
-    //   return res.status(401).json({
-    //     message: "Invalid token payload.",
-    //     code: "INVALID_PAYLOAD",
-    //   });
-    // }
+    if (!decoded.userId || typeof decoded.userId !== "string") {
+      console.log(
+        `Authentication failed: Invalid token payload from IP ${req.ip}`
+      );
+      return res.status(401).json({
+        message: "Invalid token payload.",
+        code: "INVALID_PAYLOAD",
+      });
+    }
     if (!userId) {
       console.log(
         `Authentication failed: Invalid token payload from IP ${req.ip}`
@@ -212,13 +212,15 @@ exports.authMiddleware = async (req, res, next) => {
     }
 
     // Optional: Check token version for invalidation
-    // if (user.tokenVersion !== decoded.tokenVersion) {
-    //   console.log(`Authentication failed: Token version mismatch for user ${user.id}`);
-    //   return res.status(401).json({
-    //     message: "Token has been invalidated. Please log in again.",
-    //     code: "TOKEN_INVALIDATED"
-    //   });
-    // }
+    if (user.tokenVersion !== decoded.tokenVersion) {
+      console.log(
+        `Authentication failed: Token version mismatch for user ${user.id}`
+      );
+      return res.status(401).json({
+        message: "Token has been invalidated. Please log in again.",
+        code: "TOKEN_INVALIDATED",
+      });
+    }
 
     // Attach user info to request
     req.user = {

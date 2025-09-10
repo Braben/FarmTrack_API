@@ -6,7 +6,8 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 //import routes
-const userRoutes = require("./routes/userRoutes");
+const userRoute = require("./routes/userRoutes"); // User routes: update password
+const authRoute = require("./routes/authRoutes"); // Auth routes: register, login, logout, forgot password, reset password etc
 
 const app = express();
 
@@ -22,7 +23,8 @@ app.get("/", (req, res) => {
 });
 
 // Import routes
-app.use("/api/users", userRoutes); // User routes
+app.use("/api/auth", authRoute); // Auth routes
+app.use("/api/users", userRoute); // user routes
 
 //server listening
 app.listen(process.env.PORT || 5500, () => {
