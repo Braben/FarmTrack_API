@@ -13,9 +13,14 @@ const {
 } = require("../controllers/authcontroller");
 const loginLimiter = require("../middlewares/loginLimiter");
 const { authMiddleware } = require("../middlewares/authmiddleware");
+const sanitizeBody = require("../middlewares/sanitize");
 
 // Define user routes
-router.post("/register", register);
+router.post(
+  "/register",
+  sanitizeBody(["firstname", "lastname", "email", "phone", "password", "role"]),
+  register
+); // Register route
 router.get("/:id", getUserById);
 router.put("/update/:id", authMiddleware, updateUser);
 router.delete("/:id", deleteUser);
