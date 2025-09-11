@@ -11,6 +11,7 @@ const { authRateLimit } = require("./middlewares/authmiddleware");
 const userRoute = require("./routes/userRoutes"); // User routes: update password
 const authRoute = require("./routes/authRoutes"); // Auth routes: register, login, logout, forgot password, reset password etc
 const sanitizeBody = require("./middlewares/sanitize");
+const farmRoute = require("./routes/farmRoutes"); // Farm routes: create, read, update, delete farms
 
 const app = express();
 app.use(helmet());
@@ -32,6 +33,7 @@ app.get("/", (req, res) => {
 // Import routes
 app.use("/api/auth", authRoute); // Auth routes
 app.use("/api/users", userRoute); // user routes
+app.use("/api/farms", farmRoute); // Farm routes
 
 //server listening
 app.listen(process.env.PORT || 5500, () => {

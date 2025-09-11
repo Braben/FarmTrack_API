@@ -22,7 +22,12 @@ router.post(
   register
 ); // Register route
 router.get("/:id", getUserById);
-router.put("/update/:id", authMiddleware, updateUser);
+router.put(
+  "/update/:id",
+  authMiddleware,
+  sanitizeBody(["firstname", "lastname", "email", "phone", "password", "role"]),
+  updateUser
+);
 router.delete("/:id", deleteUser);
 
 //Define auth routes
