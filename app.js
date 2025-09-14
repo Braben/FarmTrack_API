@@ -12,6 +12,7 @@ const userRoute = require("./routes/userRoutes"); // User routes: update passwor
 const authRoute = require("./routes/authRoutes"); // Auth routes: register, login, logout, forgot password, reset password etc
 const sanitizeBody = require("./middlewares/sanitize");
 const farmRoute = require("./routes/farmRoutes"); // Farm routes: create, read, update, delete farms
+const recordRoute = require("./routes/recordRoutes"); // Record routes: create, read, update, delete records
 
 const app = express();
 app.use(helmet());
@@ -34,6 +35,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoute); // Auth routes
 app.use("/api/users", userRoute); // user routes
 app.use("/api/farms", farmRoute); // Farm routes
+app.use("/api/farms", recordRoute); // Record routes
 
 //server listening
 app.listen(process.env.PORT || 5500, () => {

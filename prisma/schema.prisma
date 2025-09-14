@@ -61,9 +61,13 @@ model Record {
   birdsDied     Int
   birdsSold     Int
   expenses      Float
+  mortialityCause String?
+  photos       String[]  @default([])
   notes         String?
-
-  farm Farm @relation(fields: [farmId], references: [id])
+  weatherInfo  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+    farm Farm @relation(fields: [farmId], references: [id])
 }
 
 model Sale {
