@@ -79,6 +79,12 @@ exports.getFarmRecords = async (req, res) => {
       orderBy: { date: "desc" },
     });
 
+    if (records === null || records.length === 0) {
+      return res
+        .status(404)
+        .json({ Message: "No records found for this farm" });
+    }
+
     res.status(200).json({
       status: "success",
       results: records.length,
@@ -121,7 +127,11 @@ exports.updateRecord = async (req, res) => {
   try {
     const record = await prisma.record.findUnique({ where: { id } });
     if (!record) {
-      return res.status(404).json({ error: "Record not found" });
+      return res
+        .status(404)
+        .json({
+          error: "Record not found: You cannot update an unknown record",
+        });
     }
 
     const updatedRecord = await prisma.record.update({
