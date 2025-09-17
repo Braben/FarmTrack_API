@@ -35,7 +35,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoute); // Auth routes
 app.use("/api/users", userRoute); // user routes
 app.use("/api/farms", farmRoute); // Farm routes
-app.use("/api/farms", recordRoute); // Record routes
+app.use("/api/farm/records", recordRoute); // Record routes
 
 //server listening
 app.listen(process.env.PORT || 5500, () => {

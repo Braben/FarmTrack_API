@@ -12,7 +12,7 @@ const {
 
 // Create new record
 router.post(
-  "/:farmId/records",
+  "/:farmId",
   authMiddleware,
   sanitizeBody([
     "feedUsedKg",
@@ -29,13 +29,28 @@ router.post(
 );
 
 // Get all records for a farm
-router.get("/farms/:farmId", authMiddleware, getFarmRecords);
+router.get("/:farmId", authMiddleware, getFarmRecords);
 
 // Get single record
 router.get("/:id", authMiddleware, getRecord);
 
 // Update record
-router.patch("/:id", authMiddleware, sanitizeBody([""]), updateRecord);
+router.patch(
+  "/:id",
+  authMiddleware,
+  sanitizeBody([
+    "feedUsedKg",
+    "eggsCollected",
+    "birdsDied",
+    "birdsSold",
+    "expenses",
+    "mortialityCause",
+    "photos",
+    "notes",
+    "weatherInfo",
+  ]),
+  updateRecord
+);
 
 // Delete record
 router.delete("/:id", authMiddleware, deleteRecord);

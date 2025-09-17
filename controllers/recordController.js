@@ -153,7 +153,9 @@ exports.deleteRecord = async (req, res) => {
 
     await prisma.record.delete({ where: { id } });
 
-    res.status(204).json({ message: "Record deleted successfully" });
+    console.log("Record deleted successfully!", "id:", id);
+
+    res.status(200).json({ message: "Record deleted successfully!", id });
   } catch (error) {
     console.error("Error deleting record:", error);
     res.status(500).json({ error: "Failed to delete record" });
