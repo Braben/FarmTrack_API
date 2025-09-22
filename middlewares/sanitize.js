@@ -3,9 +3,13 @@ const { body, validationResult } = require("express-validator");
 const validator = require("validator");
 const { parsePhoneNumberFromString } = require("libphonenumber-js");
 
+/**
+ * Middleware factory for sanitizing & validating request bodies, queries, and params.
+ * @param {string[]} allowedFields - Whitelisted body fields to keep.
+ */
 const sanitizeBody = (allowedFields = []) => {
   return [
-    // --- Step 1: Validation + Sanitization rules ---
+    // --- Step 1: Validation rules for body ---
     body("firstname")
       .optional()
       .isLength({ min: 3, max: 50 })
@@ -27,7 +31,7 @@ const sanitizeBody = (allowedFields = []) => {
     body("phone")
       .optional()
       .custom((value) => {
-        const phoneNumber = parsePhoneNumberFromString(value, "GH"); // Ghana default
+        const phoneNumber = parsePhoneNumberFromString(value, "GH");
         if (!phoneNumber || !phoneNumber.isValid()) {
           throw new Error("Invalid phone number");
         }
@@ -47,6 +51,7 @@ const sanitizeBody = (allowedFields = []) => {
         "Password must be at least 8 characters, with upper, lower, number & symbol."
       ),
 
+    // Farms
     body("farmName")
       .optional()
       .isLength({ min: 3, max: 100 })
@@ -75,7 +80,7 @@ const sanitizeBody = (allowedFields = []) => {
       .isString()
       .withMessage("Owner ID must be a string"),
 
-    // --- Step 2: Sanitization middleware ---
+    // --- Step 2: Sanitization middleware for body, query & params ---
     (req, res, next) => {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -88,48 +93,47 @@ const sanitizeBody = (allowedFields = []) => {
         });
       }
 
-      const sanitized = {};
+      // Helper sanitize function
+      const cleanValue = (val, key = "") => {
+        if (typeof val !== "string") return val;
+
+        let cleaned = sanitizeHtml(val, {
+          allowedTags: [],
+          allowedAttributes: {},
+        }).trim();
+
+        if (key.toLowerCase() === "email") {
+          cleaned = validator.normalizeEmail(cleaned) || cleaned;
+        }
+
+        if (key.toLowerCase() === "phone") {
+          const phoneNumber = parsePhoneNumberFromString(cleaned, "GH");
+          if (phoneNumber && phoneNumber.isValid()) {
+            cleaned = phoneNumber.number; // E.164 format: +233501234567
+          }
+        }
+
+        return cleaned;
+      };
+
+      // Sanitize body (only whitelisted fields)
+      const sanitizedBody = {};
       for (const [key, value] of Object.entries(req.body)) {
         if (allowedFields.length && !allowedFields.includes(key)) continue;
+        sanitizedBody[key] = cleanValue(value, key);
+      }
+      req.body = sanitizedBody;
 
-        if (typeof value === "string") {
-          let cleaned = sanitizeHtml(value, {
-            allowedTags: [],
-            allowedAttributes: {},
-          });
-
-          // Prevent basic SQL injection attempts
-          if (
-            /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE)\b)/i.test(
-              cleaned
-            )
-          ) {
-            return res.status(400).json({
-              status: "fail",
-              error: `Invalid characters detected in field "${key}"`,
-            });
-          }
-
-          // Normalize email
-          if (key.toLowerCase() === "email") {
-            cleaned = validator.normalizeEmail(cleaned) || cleaned;
-          }
-
-          // Normalize phone
-          if (key.toLowerCase() === "phone") {
-            const phoneNumber = parsePhoneNumberFromString(cleaned, "GH");
-            if (phoneNumber && phoneNumber.isValid()) {
-              cleaned = phoneNumber.number; // E.164 format: +233501234567
-            }
-          }
-
-          sanitized[key] = cleaned;
-        } else {
-          sanitized[key] = value;
-        }
+      // Sanitize query params
+      for (const [key, value] of Object.entries(req.query)) {
+        req.query[key] = cleanValue(value, key);
       }
 
-      req.body = sanitized;
+      // Sanitize route params (like :id, :farmId)
+      for (const [key, value] of Object.entries(req.params)) {
+        req.params[key] = cleanValue(value, key);
+      }
+
       next();
     },
   ];
