@@ -13,17 +13,13 @@ exports.register = async (req, res) => {
     const { firstname, lastname, email, phone, password, role, profileInfo } =
       req.body;
 
-    // const existingUser = await prisma.user.findUnique({
-    //   where: { email, OR: { phone } },
-    // });
-
+    // 1. Check if user already exists
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ email: email }, { phone: phone }],
+        OR: [{ email }, { phone }],
       },
     });
-    // if (existingUser)
-    //   return res.status(400).json({ error: "Email or phone already registered" });
+
     if (existingUser) {
       let reason = "Email or phone already registered";
 
@@ -37,9 +33,11 @@ exports.register = async (req, res) => {
 
       return res.status(400).json({ error: reason });
     }
-    // Hash the password
+
+    // 2. Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 3. Create user
     const newUser = await prisma.user.create({
       data: {
         firstname,
@@ -52,20 +50,51 @@ exports.register = async (req, res) => {
       },
     });
 
-    newUser.password = undefined; // Hide password in response
-    // newUser.id = undefined; // Hide id in response
+    // 4. Generate JWT token for auto-login
+    const accessToken = jwt.sign(
+      { userId: newUser.id, role: newUser.role },
+      process.env.JWT_SECRET,
+      {
+        subject: newUser.id.toString(),
+        expiresIn: process.env.JWT_EXPIRES_IN || "1h",
+        issuer: "FarmTrackAPI",
+        audience: "FarmTrackUsers",
+      }
+    );
 
-    console.log("New User Created:", newUser);
-    res.status(201).json({
-      message: "User registered successfully",
-      // newUser: { newUser, id: newUser.id, email: newUser.email },
-      newUser,
+    // 5. Prepare user response (hide password)
+    const userResponse = {
+      id: newUser.id,
+      firstname: newUser.firstname,
+      lastname: newUser.lastname,
+      email: newUser.email,
+      phone: newUser.phone,
+      role: newUser.role,
+      profileInfo: newUser.profileInfo,
+    };
+
+    // 6. Set cookie with JWT
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 60 * 60 * 1000, // 1h
     });
+
+    // 7. Send response
+    res.status(201).json({
+      message: "User registered & logged in successfully",
+      token: accessToken,
+      user: userResponse,
+    });
+
+    console.log("✅ New User Created:", userResponse);
   } catch (error) {
-    console.error("Registration Error:", error.message);
-    res
-      .status(500)
-      .json({ error: "Registration failed", errorMessage: error.message });
+    console.error("❌ Registration Error:", error.message);
+    res.status(500).json({
+      error: "Registration failed",
+      errorMessage: error.message,
+    });
   }
 };
 
@@ -241,7 +270,7 @@ exports.login = async (req, res) => {
     );
 
     // Set cookie with same expiration as token
-    res.cookie("JWT", accessToken, {
+    res.cookie("token", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
@@ -253,12 +282,12 @@ exports.login = async (req, res) => {
     // Send response with user info and token
     return res.status(200).json({
       message: "Login successful",
+      token: accessToken, // return token in response too
       user: {
         id: user.id,
         email: user.email,
         phone: user.phone,
         role: user.role,
-        JWT: accessToken, // return token in response too
       },
     });
   } catch (error) {
