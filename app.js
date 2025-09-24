@@ -12,6 +12,7 @@ const userRoute = require("./routes/userRoutes");
 const authRoute = require("./routes/authRoutes");
 const farmRoute = require("./routes/farmRoutes");
 const recordRoute = require("./routes/recordRoutes");
+const salesRoute = require("./routes/salesRoutes");
 
 const app = express();
 
@@ -44,7 +45,7 @@ app.use("/api/auth", authRoute); // Auth routes
 app.use("/api/users", userRoute); // User routes
 app.use("/api/farms", farmRoute); // Farm routes
 app.use("/api/farms", recordRoute); // Nested Record routes
-app.use("/api/sales", require("./routes/salesRoutes")); // Sales routes
+app.use("/api/farms", salesRoute); // Sales routes
 
 // --- Global error handler (must be last) ---
 app.use((err, req, res, next) => {

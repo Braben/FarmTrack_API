@@ -80,6 +80,87 @@ const sanitizeBody = (allowedFields = []) => {
       .isString()
       .withMessage("Owner ID must be a string"),
 
+    // Records
+    body("feedUsedKg")
+      .optional()
+      .isLength({ min: 3, max: 50 })
+      .trim()
+      .customSanitizer((val) => val.toLowerCase()),
+    body("eggsCollected")
+      .optional()
+      .isInt({ min: 0 })
+      .withMessage("Eggs collected must be a non-negative integer"),
+    body("birdsDied")
+      .optional()
+      .isInt({ min: 0 })
+      .withMessage("Birds died must be a non-negative integer"),
+    body("birdsSold")
+      .optional()
+      .isInt({ min: 0 })
+      .withMessage("Birds sold must be a non-negative integer"),
+    body("expenses")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("Expenses must be a non-negative number"),
+    body("mortialityCause")
+      .optional()
+      .isLength({ min: 3, max: 100 })
+      .trim()
+      .customSanitizer((val) => val.toLowerCase()),
+    body("photos")
+      .optional()
+      .isArray()
+      .withMessage("Photos must be an array of URLs"),
+    body("notes")
+      .optional()
+      .isLength({ max: 500 })
+      .trim()
+      .customSanitizer((val) =>
+        sanitizeHtml(val, { allowedTags: [], allowedAttributes: {} })
+      ),
+    body("weatherInfo")
+      .optional()
+      .isLength({ max: 200 })
+      .trim()
+      .customSanitizer((val) => val.toLowerCase()),
+
+    // Sales
+    body("product")
+      .optional()
+      .isLength({ min: 1, max: 100 })
+      .trim()
+      .customSanitizer((val) => val.toLowerCase()),
+
+    body("quantity")
+      .optional()
+      .isFloat({ gt: 0 })
+      .withMessage("Quantity must be a positive number"),
+
+    body("unitPrice")
+      .optional()
+      .isFloat({ gt: 0 })
+      .withMessage("Unit price must be a positive number"),
+
+    body("buyerName")
+      .optional()
+      .isLength({ min: 3, max: 100 })
+      .trim()
+      .customSanitizer((val) => val.toLowerCase()),
+
+    // body("date")
+    //   .optional()
+    //   .isISO8601()
+    //   .toDate()
+    //   .withMessage("Date must be a valid date"),
+
+    body("notes")
+      .optional()
+      .isLength({ max: 500 })
+      .trim()
+      .customSanitizer((val) =>
+        sanitizeHtml(val, { allowedTags: [], allowedAttributes: {} })
+      ),
+
     // --- Step 2: Sanitization middleware for body, query & params ---
     (req, res, next) => {
       const errors = validationResult(req);
