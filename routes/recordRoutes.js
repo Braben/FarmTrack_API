@@ -4,8 +4,8 @@ const { authMiddleware } = require("../middlewares/authmiddleware");
 const sanitizeBody = require("../middlewares/sanitize");
 const {
   createRecord,
-  getFarmRecords,
-  getRecord,
+  getAllRecords,
+  getRecordById,
   updateRecord,
   deleteRecord,
 } = require("../controllers/recordController");
@@ -29,14 +29,14 @@ router.post(
 );
 
 // Get all records for a farm
-router.get("/:farmId/records", authMiddleware, getFarmRecords);
+router.get("/:farmId/records", authMiddleware, getAllRecords);
 
 // Get single record
-router.get("/:farmId/records/:id", authMiddleware, getRecord);
+router.get("/:farmId/records/:recordId", authMiddleware, getRecordById);
 
 // Update record
-router.patch(
-  "/:farmId/records/:id",
+router.put(
+  "/:farmId/records/:recordId",
   authMiddleware,
   sanitizeBody([
     "feedUsedKg",
@@ -53,6 +53,6 @@ router.patch(
 );
 
 // Delete record
-router.delete("/:farmId/records/:id", authMiddleware, deleteRecord);
+router.delete("/:farmId/records/:recordId", authMiddleware, deleteRecord);
 
 module.exports = router;

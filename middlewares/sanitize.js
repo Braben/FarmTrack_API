@@ -83,9 +83,10 @@ const sanitizeBody = (allowedFields = []) => {
     // Records
     body("feedUsedKg")
       .optional()
-      .isLength({ min: 3, max: 50 })
-      .trim()
-      .customSanitizer((val) => val.toLowerCase()),
+      .isFloat({ min: 0 })
+      .withMessage("Feed used must be a non-negative number")
+      .toFloat(),
+
     body("eggsCollected")
       .optional()
       .isInt({ min: 0 })

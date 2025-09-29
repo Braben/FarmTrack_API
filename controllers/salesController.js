@@ -3,19 +3,19 @@ const prisma = new PrismaClient();
 
 /** Create a new sales management record
  */
-exports.createSalesRecord = async (req, res) => {
-  if (!req.user || !req.user.id) {
-    return res.status(401).json({ error: "Unauthorized, Please Login!" });
-  }
+exports.createSale = async (req, res) => {
+  // if (!req.user || !req.user.id) {
+  //   return res.status(401).json({ error: "Unauthorized, Please Login!" });
+  // }
 
-  const farmId = req.params.farmId;
+  const { farmId } = req.params;
+  // Basic validation
   if (!farmId) {
     return res.status(400).json({ error: "Farm ID is required" });
   }
+  const { product, quantity, unitPrice, buyerName, date, notes } = req.body;
 
   try {
-    const { product, quantity, unitPrice, buyerName, date, notes } = req.body;
-
     // Ensure farm exists and belongs to user
     const farm = await prisma.farm.findUnique({
       where: { id: farmId },
@@ -35,7 +35,7 @@ exports.createSalesRecord = async (req, res) => {
     const calculatedRevenue = quantity * unitPrice;
 
     // Create sales record
-    const newSalesRecord = await prisma.Sale.create({
+    const newSales = await prisma.sale.create({
       data: {
         farmId, // associate with farm
         product,
@@ -51,7 +51,7 @@ exports.createSalesRecord = async (req, res) => {
     return res.status(201).json({
       status: "success",
       data: {
-        salesRecord: newSalesRecord,
+        sales: newSales,
       },
     });
   } catch (error) {
@@ -61,15 +61,15 @@ exports.createSalesRecord = async (req, res) => {
 };
 
 // Additional sales management functions (get, update, delete) can be added here
-exports.getSalesRecords = async (req, res) => {
+exports.getSales = async (req, res) => {
   const { farmId } = req.params;
   try {
     // Logic to get sales records for the farm
-    const salesRecords = await prisma.Sale.findMany({
+    const sales = await prisma.sale.findMany({
       where: { farmId },
       orderBy: { date: "desc" },
     });
-    if (salesRecords.length === 0 || salesRecords === null) {
+    if (sales.length === 0 || sales === null) {
       return res
         .status(404)
         .json({ error: "No sales records found for this farm, Add records" });
@@ -77,8 +77,8 @@ exports.getSalesRecords = async (req, res) => {
 
     return res.status(200).json({
       status: "Success",
-      results: salesRecords.length,
-      data: salesRecords,
+      results: sales.length,
+      data: sales,
     });
   } catch (error) {
     console.error("Error fetching sales records:", error);
@@ -90,16 +90,16 @@ exports.getSalesRecords = async (req, res) => {
  * Get a single sales record by ID
  */
 
-exports.getSalesRecord = async (req, res) => {
-  const { id } = req.params;
+exports.getSaleById = async (req, res) => {
+  const { farmId, saleId } = req.params;
   try {
-    const salesRecord = await prisma.Sale.findUnique({
-      where: { id },
+    const sales = await prisma.Sale.findUnique({
+      where: { id: saleId, farmId },
     });
-    if (!salesRecord) {
+    if (!sales) {
       return res.status(404).json({ error: "Sales record not found" });
     }
-    return res.status(200).json({ data: salesRecord });
+    return res.status(200).json({ data: sales });
   } catch (error) {
     console.error("Error fetching sales record:", error);
     res.status(500).json({ error: "Failed to fetch sales record" });
@@ -109,10 +109,24 @@ exports.getSalesRecord = async (req, res) => {
 /**
  * Update a sales record by ID
  */
-exports.updateSalesRecord = async (req, res) => {
-  const { id } = req.params;
+exports.updateSale = async (req, res) => {
+  const { farmId, saleId } = req.params;
+  const { product, quantity, unitPrice, buyerName, date, notes } = req.body;
   try {
-    const { product, quantity, unitPrice, buyerName, date, notes } = req.body;
+    const sale = await prisma.sale.findFirst({
+      where: { id: saleId, farmId },
+      include: { farm: true },
+    });
+    if (!sale) {
+      return res.status(404).json({ error: "Sales record not found" });
+    }
+
+    if (sale.farm.ownerId !== req.user.id) {
+      return res.status(403).json({
+        error: "You are not authorized to update sales records for this farm",
+      });
+    }
+
     // Recalculate revenue if quantity or unitPrice changed
     const updatedData = {
       product,
@@ -125,13 +139,14 @@ exports.updateSalesRecord = async (req, res) => {
     if (quantity !== undefined && unitPrice !== undefined) {
       updatedData.revenue = quantity * unitPrice;
     }
-    const updatedSalesRecord = await prisma.Sale.update({
-      where: { id },
+
+    const updatedSale = await prisma.Sale.update({
+      where: { id: saleId },
       data: updatedData,
     });
-    return res.status(200).json({ data: updatedSalesRecord });
+    return res.status(200).json({ data: updatedSale });
   } catch (error) {
-    console.error("Error updating sales record:", error);
+    console.error("Error updating sales record:", error.message);
     res.status(500).json({ error: "Failed to update sales record" });
   }
 };
@@ -139,20 +154,28 @@ exports.updateSalesRecord = async (req, res) => {
 /**
  * Delete a sales record by ID
  */
-exports.deleteSalesRecord = async (req, res) => {
-  const { id } = req.params;
+exports.deleteSale = async (req, res) => {
+  const { farmId, saleId } = req.params;
+
   try {
-    const deletedSalesRecord = await prisma.Sale.findUnique({ where: { id } });
-    if (!deletedSalesRecord) {
-      return res.status(404).json({ error: "Sales record not found" });
-    }
-    await prisma.Sale.delete({ where: { id } });
-    return res.status(200).json({
-      message: "Sales record deleted successfully",
-      id,
+    const sale = await prisma.sale.findFirst({
+      where: { id: saleId, farmId },
+      include: { farm: true },
     });
+
+    if (!sale) return res.status(404).json({ error: "Sale not found" });
+
+    if (sale.farm.ownerId !== req.user.id) {
+      return res
+        .status(403)
+        .json({ error: "Not authorized to delete this sale" });
+    }
+
+    await prisma.sale.delete({ where: { id: saleId } });
+
+    return res.status(200).json({ message: "Sale deleted successfully" });
   } catch (error) {
-    console.error("Error deleting record:", error);
-    res.status(500).json({ error: "Failed to delete record" });
+    console.error("Error deleting sale:", error.message);
+    return res.status(500).json({ error: "Failed to delete sale" });
   }
 };

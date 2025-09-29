@@ -4,11 +4,11 @@ const { authMiddleware } = require("../middlewares/authmiddleware");
 const sanitizeBody = require("../middlewares/sanitize");
 
 const {
-  createSalesRecord,
-  getSalesRecords,
-  getSalesRecord,
-  updateSalesRecord,
-  deleteSalesRecord,
+  createSale,
+  getSales,
+  getSaleById,
+  updateSale,
+  deleteSale,
 } = require("../controllers/salesController");
 
 //define sales routes
@@ -23,15 +23,15 @@ router.post(
     "date",
     "notes",
   ]),
-  createSalesRecord
+  createSale
 ); // Create new sales record
 
-router.get("/:farmId/sales", authMiddleware, getSalesRecords); // Get all sales records for a farm
+router.get("/:farmId/sales", authMiddleware, getSales); // Get all sales records for a farm
 
-router.get("/:farmId/sales/:id", authMiddleware, getSalesRecord); // Get single sales record by ID
+router.get("/:farmId/sales/:saleId", authMiddleware, getSaleById); // Get single sales record by ID
 
 router.patch(
-  "/:farmId/sales/:id",
+  "/:farmId/sales/:saleId",
   authMiddleware,
   sanitizeBody([
     "product",
@@ -41,9 +41,9 @@ router.patch(
     "date",
     "notes",
   ]),
-  updateSalesRecord
+  updateSale
 ); // Update sales record by ID
 
-router.delete("/:farmId/sales/:id", authMiddleware, deleteSalesRecord); // Delete sales record by ID
+router.delete("/:farmId/sales/:saleId", authMiddleware, deleteSale); // Delete sales record by ID
 
 module.exports = router;

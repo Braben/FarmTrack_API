@@ -6,6 +6,11 @@ dotenv.config();
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { sendEmail } = require("../utils/email");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} = require("../utils/token");
 
 // This function handles user registration
 exports.register = async (req, res) => {
@@ -35,7 +40,8 @@ exports.register = async (req, res) => {
     }
 
     // 2. Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const saltRounds = parseInt(process.env.saltRounds);
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // 3. Create user
     const newUser = await prisma.user.create({
@@ -50,17 +56,16 @@ exports.register = async (req, res) => {
       },
     });
 
-    // 4. Generate JWT token for auto-login
-    const accessToken = jwt.sign(
-      { userId: newUser.id, role: newUser.role },
-      process.env.JWT_SECRET,
-      {
-        subject: newUser.id.toString(),
-        expiresIn: process.env.JWT_EXPIRES_IN || "1h",
-        issuer: "FarmTrackAPI",
-        audience: "FarmTrackUsers",
-      }
-    );
+    // 4. Generate JWT
+    //tokens: access and refresh
+    const accessToken = generateAccessToken(newUser);
+    const refreshToken = generateRefreshToken(newUser);
+
+    //save refresh token in db
+    await prisma.user.update({
+      where: { id: newUser.id },
+      data: { refreshToken },
+    });
 
     // 5. Prepare user response (hide password)
     const userResponse = {
@@ -73,27 +78,26 @@ exports.register = async (req, res) => {
       profileInfo: newUser.profileInfo,
     };
 
-    // 6. Set cookie with JWT
-    res.cookie("accessToken", accessToken, {
+    //6.b set refresh token in httpOnly cookie
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 60 * 60 * 1000, // 1h
+      maxAge: 7 * 24 * 60 * 60 * 1000, //7 days
     });
 
     // 7. Send response
     res.status(201).json({
       message: "User registered & logged in successfully",
-      token: accessToken,
+      accessToken,
       user: userResponse,
     });
 
-    console.log("✅ New User Created:", userResponse);
+    console.log("New User Created:", userResponse);
   } catch (error) {
-    console.error("❌ Registration Error:", error.message);
+    console.error("Registration Error:", error.message);
     res.status(500).json({
       error: "Registration failed",
-      errorMessage: error.message,
     });
   }
 };
@@ -198,17 +202,6 @@ exports.login = async (req, res) => {
       where: {
         OR: [{ email: emailOrPhone }, { phone: emailOrPhone }],
       },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        password: true,
-        role: true,
-        lastLogin: true,
-        isActive: true,
-        loginAttempts: true,
-        lockoutUntil: true,
-      },
     });
 
     // Always check password to prevent timing attacks
@@ -244,8 +237,13 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Generate tokens
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
     // Reset login attempts and update last login in single transaction
     //this function resets login attempts to 0 after successful login
+
     await prisma.$transaction([
       prisma.user.update({
         where: { id: user.id },
@@ -253,36 +251,25 @@ exports.login = async (req, res) => {
           loginAttempts: 0,
           lockoutUntil: null,
           lastLogin: new Date(),
+          refreshToken, //save refresh token in db
         },
       }),
     ]);
 
-    // Generate JWT token with consistent expiration
-    const accessToken = jwt.sign(
-      { userId: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      {
-        subject: user.id.toString(),
-        expiresIn: process.env.JWT_EXPIRES_IN,
-        issuer: "FarmTrackAPI",
-        audience: "FarmTrackUsers",
-      }
-    );
+    //tokens: access and refresh
 
-    // Set cookie with same expiration as token
-    res.cookie("token", accessToken, {
+    //send tokens to client in httpOnly cookies
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 60 * 60 * 1000, // 1 hour
+      maxAge: 7 * 24 * 60 * 60 * 1000, //7 days
     });
 
-    console.log(`User logged in successfully: ${user.id}`);
-
-    // Send response with user info and token
+    //send access token in response body
     return res.status(200).json({
       message: "Login successful",
-      token: accessToken, // return token in response too
+      accessToken, // return access token in response too
       user: {
         id: user.id,
         email: user.email,
@@ -291,8 +278,43 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error logging in:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("Error logging in:", error.message);
+    return res.status(500).json({ error: "Login failed" });
+  }
+};
+
+//refresh token function
+exports.refreshToken = async (req, res) => {
+  const token = req.cookies.refreshToken;
+  if (!token) {
+    return res.status(401).json({ message: "No refresh token provided" });
+  }
+  try {
+    const decoded = verifyRefreshToken(token); // Verify token validity
+
+    if (!decoded) {
+      return res.status(403).json({ message: "Invalid refresh token" });
+    } // Find user and check if token matches
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    }); //decoded.userId is from payload
+
+    if (!user || user.refreshToken !== token) {
+      return res.status(403).json({ message: "Invalid refresh token" });
+    } // confirm user exists and token matches
+
+    // Generate new access token
+    const accessToken = generateAccessToken(user);
+
+    return res.status(200).json({
+      accessToken,
+    });
+  } catch (error) {
+    console.error("Error refreshing token:", error.message);
+    return res
+      .status(403)
+      .json({ message: "Invalid or expired refresh token" });
   }
 };
 
@@ -326,25 +348,88 @@ const handleLoginAttempts = async (userId) => {
   }
 };
 
-//logout user function
+// exports.logout = async (req, res) => {
+//   try {
+//     if (!req.user || !req.user.id) {
+//       return res.status(401).json({ error: "Unauthorized" });
+//     }
+
+//     await prisma.user.update({
+//       where: { id: req.user.id },
+//       data: { refreshToken: null },
+//     });
+
+//     res.clearCookie("refreshToken");
+
+//     res.json({ message: "Logged out successfully" });
+//   } catch (error) {
+//     console.error("Logout Error:", error.message);
+//     res.status(500).json({ error: "Logout failed" });
+//   }
+// };
+
+// exports.logout = async (req, res) => {
+//   try {
+//     if (!req.user || !req.user.id) {
+//       return res.status(401).json({ error: "Unauthorized" });
+//     }
+
+//     await prisma.user.update({
+//       where: { id: req.user.id },
+//       data: { refreshToken: null },
+//     });
+
+//     res.clearCookie("refreshToken");
+
+//     res.json({ message: "Logged out successfully" });
+//   } catch (error) {
+//     console.error("Logout Error:", error.message);
+//     res.status(500).json({ error: "Logout failed" });
+//   }
+// };
+
+// reset password function
+
 exports.logout = async (req, res) => {
   try {
-    // Clear the cookie by setting its maxAge to 0
-    res.cookie("accessToken", "", {
+    let userId = null;
+
+    // Option 1: From middleware
+    if (req.user && req.user.id) {
+      userId = req.user.id;
+    }
+    // Option 2: From refreshToken cookie
+    else if (req.cookies.refreshToken) {
+      const decoded = verifyRefreshToken(req.cookies.refreshToken);
+      if (decoded) {
+        userId = decoded.id;
+      }
+    }
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized: no valid token" });
+    }
+
+    // Clear refresh token in DB
+    await prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: null },
+    });
+
+    // Clear refresh token cookie
+    res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 0, // Set maxAge to 0 to clear the cookie
     });
 
-    return res.status(200).json({ message: "Logout successful" });
+    return res.json({ message: "Logged out successfully" });
   } catch (error) {
-    console.error("Error during logout:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("Logout Error:", error.message);
+    res.status(500).json({ error: "Logout failed" });
   }
 };
 
-// reset password function
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
 

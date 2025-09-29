@@ -9,6 +9,7 @@ const {
   login,
   logout,
   forgotPassword,
+  refreshToken,
   resetPassword,
 } = require("../controllers/authcontroller");
 const loginLimiter = require("../middlewares/loginLimiter");
@@ -32,7 +33,9 @@ router.delete("/:id", deleteUser);
 
 //Define auth routes
 router.post("/login", loginLimiter, login); // Note: The login route is protected by the loginLimiter middleware to prevent brute force attacks
+router.post("/refresh-token", refreshToken); // Refresh token route
 router.post("/logout", authMiddleware, logout); // Logout route
+router.post("/refresh-token", refreshToken);
 
 // Password reset routes
 router.post("/forgot-password", forgotPassword); // Forgot password route

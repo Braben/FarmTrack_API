@@ -1,10 +1,13 @@
 const express = require("express");
 const router = express.Router();
-const { authMiddleware } = require("../middlewares/authmiddleware");
+const {
+  authMiddleware,
+  requireRole,
+} = require("../middlewares/authmiddleware");
 const sanitizeBody = require("../middlewares/sanitize");
 const {
   createFarm,
-  getFarms,
+  getAllFarms,
   getFarmById,
   updateFarm,
   deleteFarm,
@@ -17,7 +20,7 @@ router.post(
   sanitizeBody(["farmName", "location", "size", "farmType", "ownerId"]),
   createFarm
 );
-router.get("/", authMiddleware, getFarms);
+router.get("/", authMiddleware, getAllFarms);
 router.get("/:id", authMiddleware, getFarmById);
 router.put(
   "/:id",
@@ -25,7 +28,7 @@ router.put(
   sanitizeBody(["farmName", "location", "size", "farmType", "ownerId"]),
   updateFarm
 );
-router.patch("/:id", authMiddleware, deleteFarm);
+router.patch("/:id", authMiddleware, requireRole("Farmer"), deleteFarm);
 
 // Export the router
 module.exports = router;

@@ -32,6 +32,10 @@ model User {
   passwordResetToken   String?
   passwordResetExpires DateTime?
   passwordChangedAt    DateTime?
+  verificationToken    String?
+  tokenExpires         DateTime?
+  isVerified           Boolean   @default(false)
+  refreshToken         String?
   farms                Farm[]
 }
 
@@ -53,21 +57,21 @@ model Farm {
 }
 
 model Record {
-  id            String   @id @default(cuid())
-  farmId        String
-  date          DateTime @default(now())
-  feedUsedKg    Float
-  eggsCollected Int
-  birdsDied     Int
-  birdsSold     Int
-  expenses      Float
+  id              String   @id @default(cuid())
+  farmId          String
+  date            DateTime @default(now())
+  feedUsedKg      Float
+  eggsCollected   Int
+  birdsDied       Int
+  birdsSold       Int
+  expenses        Float
   mortialityCause String?
-  photos       String[]  @default([])
-  notes         String?
-  weatherInfo  String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-    farm Farm @relation(fields: [farmId], references: [id])
+  photos          String[] @default([])
+  notes           String?
+  weatherInfo     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  farm            Farm     @relation(fields: [farmId], references: [id])
 }
 
 model Sale {
@@ -79,8 +83,9 @@ model Sale {
   unitPrice Float
   buyerName String?
   revenue   Float
-
-  farm Farm @relation(fields: [farmId], references: [id])
+  notes     String?
+  createdAt DateTime @default(now())
+  farm      Farm     @relation(fields: [farmId], references: [id])
 }
 
 model Reminder {
