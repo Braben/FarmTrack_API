@@ -17,7 +17,7 @@ const {
 router.post(
   "/",
   authMiddleware,
-  sanitizeBody(["farmName", "location", "size", "farmType", "ownerId"]),
+  sanitizeBody(["farmName", "location", "size", "farmType","description", "ownerId"]),
   createFarm
 );
 router.get("/", authMiddleware, getAllFarms);
@@ -25,10 +25,10 @@ router.get("/:id", authMiddleware, getFarmById);
 router.put(
   "/:id",
   authMiddleware,
-  sanitizeBody(["farmName", "location", "size", "farmType", "ownerId"]),
+  sanitizeBody(["farmName", "location", "size", "farmType", "description","ownerId"]),
   updateFarm
 );
-router.patch("/:id", authMiddleware, requireRole("Farmer"), deleteFarm);
+router.patch("/:id", authMiddleware, deleteFarm);
 
 // Export the router
 module.exports = router;

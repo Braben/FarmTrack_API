@@ -75,10 +75,13 @@ const sanitizeBody = (allowedFields = []) => {
       .trim()
       .customSanitizer((val) => val.toLowerCase()),
 
-    body("ownerId")
+  body("description")
       .optional()
-      .isString()
-      .withMessage("Owner ID must be a string"),
+      .isLength({ max: 500 })
+      .trim()
+      .customSanitizer((val) =>
+        sanitizeHtml(val, { allowedTags: [], allowedAttributes: {} })
+      ),
 
     // Records
     body("feedUsedKg")

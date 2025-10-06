@@ -61,14 +61,25 @@ exports.getAllFarms = async (req, res) => {
   }
 
   try {
+    // const farms = await prisma.farm.findMany({
+    //   where:{ownerId:req.user.id},
+    //   include: {
+    //     owner: {
+    //       select: { id: true, firstname: true, lastname: true, email: true },
+    //     },
+    //   },
+    //   // where: { isActive: true },
+    // });
+
     const farms = await prisma.farm.findMany({
-      include: {
-        owner: {
-          select: { id: true, firstname: true, lastname: true, email: true },
-        },
-      },
-      // where: { isActive: true },
-    });
+  where: { ownerId: req.user.id }, //  Only fetch this user’s farms
+  include: {
+    owner: {
+      select: { id: true, firstname: true, lastname: true, email: true },
+    },
+  },
+});
+
     return res.status(200).json({
       count: farms.length,
       message: "Farms fetched successfully",
