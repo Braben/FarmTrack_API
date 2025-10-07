@@ -19,10 +19,10 @@ exports.createFarm = async (req, res) => {
         location,
         ownerId: req.user.id,
         isActive: true,
-        description
       },
     });
 
+    
     if (existingFarm) {
       // If a duplicate farm is found, return a conflict error
       return res.status(409).json({
