@@ -93,7 +93,7 @@ exports.getAllRecords = async (req, res) => {
     res.status(200).json({
       status: "success",
       results: records.length,
-      data: records,
+      records: records,
     });
   } catch (error) {
     console.error("Error retrieving records:", error.message);
@@ -111,8 +111,11 @@ exports.getRecordById = async (req, res) => {
   const { farmId, recordId } = req.params;
 
   try {
-    const record = await prisma.record.findUnique({
-      where: { id: recordId, farmId },
+    const record = await prisma.record.findFirst({
+      where: {
+        id: recordId,
+        farmId: farmId,
+      },
     });
 
     if (!record) {
