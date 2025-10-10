@@ -40,6 +40,7 @@ const authRoute = require("./routes/authRoutes");
 const farmRoute = require("./routes/farmRoutes");
 const recordRoute = require("./routes/recordRoutes");
 const salesRoute = require("./routes/salesRoutes");
+const remindersRoute = require("./routes/remindersRoutes");
 
 // Root route
 app.get("/", (req, res) => {
@@ -54,6 +55,7 @@ app.use("/api/users", userRoute);
 app.use("/api/farms", farmRoute);
 app.use("/api/farms", recordRoute); // nested under farms
 app.use("/api/farms", salesRoute); // nested under farms
+app.use("/api/farms", remindersRoute); // nested under farms
 
 // --- Global error handler (must be last) ---
 app.use((err, req, res, next) => {

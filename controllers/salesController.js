@@ -50,10 +50,7 @@ exports.createSale = async (req, res) => {
 
     return res.status(201).json({
       status: "success",
-      results: data.length,
-      data: {
-        sales: newSales,
-      },
+      data: newSales,
     });
   } catch (error) {
     console.error("Error creating sales record:", error.message);
