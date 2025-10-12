@@ -40,20 +40,22 @@ model User {
 }
 
 model Farm {
-  id          String     @id @default(cuid())
-  farmName    String
-  location    String
-  size        Float
-  farmType    String
-  isActive    Boolean    @default(true)
-  description String?
-  ownerId     String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  owner       User       @relation(fields: [ownerId], references: [id])
-  records     Record[]
-  sales       Sale[]
-  reminders   Reminder[]
+  id           String                 @id @default(cuid())
+  farmName     String
+  location     String
+  size         Float
+  farmType     String
+  isActive     Boolean                @default(true)
+  description  String?
+  ownerId      String
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  owner        User                   @relation(fields: [ownerId], references: [id])
+  records      Record[]
+  sales        Sale[]
+  reminders    Reminder[]
+  inventory    InventoryItem[]
+  transactions FinancialTransaction[]
 }
 
 model Record {
@@ -97,6 +99,39 @@ model Reminder {
   isCompleted Boolean  @default(false)
 
   farm Farm @relation(fields: [farmId], references: [id])
+}
+
+model InventoryItem {
+  id               String    @id @default(cuid())
+  farmId           String
+  itemType         String // e.g., feed, medication, equipment, other
+  itemName         String
+  currentQuantity  Float
+  unit             String // kg, liters, pieces
+  unitCost         Float?
+  supplier         String?
+  purchaseDate     DateTime?
+  expiryDate       DateTime?
+  minimumThreshold Float?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  farm             Farm      @relation(fields: [farmId], references: [id])
+}
+
+model FinancialTransaction {
+  id              String   @id @default(cuid())
+  farmId          String
+  transactionDate DateTime @default(now())
+  type            String // 'income' | 'expense'
+  category        String
+  amount          Float
+  quantity        Float?
+  unitPrice       Float?
+  description     String?
+  counterparty    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  farm            Farm     @relation(fields: [farmId], references: [id])
 }
 
 enum UserRole {
